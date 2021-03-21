@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 app = FastAPI()
 
+
 modals.Base.metadata.create_all(engine)
 
 def get_db():
