@@ -1,8 +1,9 @@
-from fastapi import FastAPI,Depends
+from fastapi import FastAPI,Depends,Response,HTTPException,status
 from schema import Blog
 import modals
 from database import engine,SessionLocal
 from sqlalchemy.orm import Session
+from fastapi.encoders import jsonable_encoder
 
 app = FastAPI()
 # print('fastApi Instance--',app)
@@ -19,7 +20,7 @@ def get_db():
         db.close()
 
 
-@app.post('/blog')
+@app.post('/blog',status_code = status.HTTP_201_CREATED)
 def create(request:Blog,db:Session = Depends(get_db)):
     # print("request--",request)
     # print("db--",db)
@@ -36,7 +37,30 @@ def all_blog(db:Session = Depends(get_db)):
     return blogs
 
 
-@app.get('/blog/{id}')
+@app.get('/blog/{id}',status_code=status.HTTP_200_OK)
 def blog(id, db:Session = Depends(get_db)):
     blog = db.query(modals.Blog).filter(modals.Blog.id==id).first()
+    if not blog:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail=f"Blog with id {id} not found")
     return blog
+
+
+@app.delete('/blog/{id}',status_code=status.HTTP_204_NO_CONTENT)
+def delete_blog(id, db:Session = Depends(get_db)):
+    blog = db.query(modals.Blog).filter(modals.Blog.id==id).first()
+    if not blog:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail=f"Blog with id {id} not found")
+    db.query(modals.Blog).filter(modals.Blog.id==id).delete(synchronize_session=False)
+    db.commit()
+    return f"blog with id {id} deleted" 
+
+
+@app.put('/blog/{id}',status_code=status.HTTP_202_ACCEPTED)
+def update_blog(id, request:Blog,db:Session = Depends(get_db)):
+    blog = db.query(modals.Blog).filter(modals.Blog.id==id).first()
+    if not blog:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail=f"Blog with id {id} not found")
+    update_item_encoded = jsonable_encoder(request)
+    db.query(modals.Blog).filter(modals.Blog.id==id).update(update_item_encoded)
+    db.commit()
+    return f"blog with id {id} updated" 
